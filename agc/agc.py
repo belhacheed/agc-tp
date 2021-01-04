@@ -23,15 +23,14 @@ from collections import Counter
 # ftp://ftp.ncbi.nih.gov/blast/matrices/
 import nwalign3 as nw
 
-__author__ = "Your Name"
+__author__ = "Edouard Belhache"
 __copyright__ = "Universite Paris Diderot"
-__credits__ = ["Your Name"]
+__credits__ = ["Edouard Belhache"]
 __license__ = "GPL"
 __version__ = "1.0.0"
-__maintainer__ = "Your Name"
-__email__ = "your@email.fr"
+__maintainer__ = "Edouard Belhache"
+__email__ = "belhacheed@eisti.eu"
 __status__ = "Developpement"
-
 
 def isfile(path):
     """Check if path is an existing file.
@@ -55,7 +54,7 @@ def get_arguments():
     parser = argparse.ArgumentParser(description=__doc__, usage=
                                      "{0} -h"
                                      .format(sys.argv[0]))
-    parser.add_argument('-i', '-amplicon_file', dest='amplicon_file', type=isfile, required=True, 
+    parser.add_argument('-i', '-amplicon_file', dest='amplicon_file', type=isfile, required=True,
                         help="Amplicon is a compressed fasta file (.fasta.gz)")
     parser.add_argument('-s', '-minseqlen', dest='minseqlen', type=int, default = 400,
                         help="Minimum sequence length for dereplication")
@@ -70,28 +69,57 @@ def get_arguments():
     return parser.parse_args()
 
 def read_fasta(amplicon_file, minseqlen):
-    pass
+    with gzip.open(amplicon_file, "rb") as file:
+        seq=b""
+        for line in file:
+            if line.startswith(b">"):
+                if len(seq)>minseqlen:
+                    yield seq.decode("UTF-8")
+                seq=b""
+            else:
+                seq=seq+line.strip()
+    yield seq.decode("UTF-8")
 
 
 def dereplication_fulllength(amplicon_file, minseqlen, mincount):
-    pass
+    long={}
+    for i in read_fasta(amplicon_file, minseqlen):
+        if i in long.keys():
+            long[i]=long[i]+1
+        else:
+            long[i]=1
+    for key, val in sorted(long.items(),key=lambda long2:long2[1],reverse=True):
+        if val>mincount:
+            yield [key,val]
 
 
 def get_chunks(sequence, chunk_size):
-    pass
+    chunk=[]
+    long=len(sequence)
+    for i in range(1,long):
+        if i*chunk_size<long:
+            chunk.append(sequence[(i*chunk_size)-chunk_size:i*(chunk_size)])
+    return chunk
+    if long<4*chunk_size:
+        return -1
 
 def get_unique(ids):
     return {}.fromkeys(ids).keys()
 
-
-def common(lst1, lst2): 
+def common(lst1, lst2):
     return list(set(lst1) & set(lst2))
 
 def cut_kmer(sequence, kmer_size):
-    pass
+    for i in range(len(sequence)-kmer_size+1):
+        yield sequence[i:i+kmer_size]
 
 def get_identity(alignment_list):
-    pass
+    compteur=0
+    for i in range(len(alignment_list[0])):
+        if alignment_list[0][i]==alignment_list[1][i]:
+            compteur=compteur+1
+    id1=compteur/len(alignment_list[0])*100
+    return id1
 
 def chimera_removal(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
     pass
